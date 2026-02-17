@@ -24,18 +24,43 @@ export default function Home() {
     return () => observer.disconnect();
   }, []);
 
+  const [loadingStep, setLoadingStep] = useState(0);
+  const steps = [
+    { label: 'VIN', msg: 'Validando formato de VIN...' },
+    { label: 'Vehículo', msg: 'Identificando marca y modelo...' },
+    { label: 'Piezas', msg: 'Buscando piezas en inventario...' },
+    { label: 'Reporte', msg: 'Generando reporte completo...' },
+  ];
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setLoadingStep(0);
     setError('');
     setResult(null);
 
+    // Multi-step loading simulation for better UX (otherwise it's too fast)
+    const runSteps = async () => {
+      setLoadingStep(0);
+      await new Promise(r => setTimeout(r, 800));
+      setLoadingStep(1);
+      await new Promise(r => setTimeout(r, 1200));
+      setLoadingStep(2);
+      await new Promise(r => setTimeout(r, 1000));
+      setLoadingStep(3);
+      await new Promise(r => setTimeout(r, 800));
+    };
+
     try {
-      const res = await fetch('/api/lookup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      });
+      const [res] = await Promise.all([
+        fetch('/api/lookup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(form),
+        }),
+        runSteps()
+      ]);
+
       const data = await res.json();
 
       if (data.success) {
@@ -48,8 +73,26 @@ export default function Home() {
       setError('Error de conexión. Intenta de nuevo.');
     } finally {
       setLoading(false);
+      setLoadingStep(0);
     }
   };
+
+  const LoadingProgress = () => (
+    <div className="progress-container">
+      <div className="progress-steps-list">
+        {steps.map((step, idx) => (
+          <div key={idx} className={`progress-step-item ${idx === loadingStep ? 'active' : ''} ${idx < loadingStep ? 'completed' : ''}`}>
+            <div className="step-dot">{idx < loadingStep ? '✓' : idx + 1}</div>
+            <div className="step-label">{step.label}</div>
+          </div>
+        ))}
+      </div>
+      <div className="progress-bar-wrapper">
+        <div className="progress-bar-fill" style={{ width: `${((loadingStep + 1) / steps.length) * 100}%` }}></div>
+      </div>
+      <div className="progress-message">{steps[loadingStep].msg}</div>
+    </div>
+  );
 
   return (
     <div className="page-wrapper">
@@ -114,8 +157,10 @@ export default function Home() {
             </div>
 
             <button type="submit" className="btn-primary" style={{ width: '100%', marginTop: '4px', padding: '16px' }} disabled={loading}>
-              {loading ? '⏳ Buscando en inventario...' : '🔍 Buscar Piezas Disponibles'}
+              {loading ? '⏳ Procesando...' : '🔍 Buscar Piezas Disponibles'}
             </button>
+
+            {loading && <LoadingProgress />}
 
             {error && (
               <div className="alert alert-error" style={{ marginTop: '16px' }}>
