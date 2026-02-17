@@ -42,14 +42,16 @@ export async function processQuery({ vin, customerName, customerPhone, customerE
 
     // Send email with results
     let emailSent = false;
+    let emailError = null;
     if (customerEmail) {
       const { subject, html, text } = formatPartsEmail(vehicle, parts, customerName);
       const emailResult = await sendEmail(customerEmail, subject, html, text);
       emailSent = emailResult.success;
+      emailError = emailResult.error;
     }
 
-    db.prepare('UPDATE queries SET status = ?, email_sent = ? WHERE id = ?')
-      .run(emailSent ? 'sent' : 'processed', emailSent ? 1 : 0, queryId);
+    db.prepare('UPDATE queries SET status = ?, email_sent = ?, error_message = ? WHERE id = ?')
+      .run(emailSent ? 'sent' : 'processed', emailSent ? 1 : 0, emailError, queryId);
 
     return { success: true, queryId, vehicle, partsCount: parts.length, parts, emailSent };
   } catch (error) {

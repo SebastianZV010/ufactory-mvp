@@ -201,7 +201,9 @@ export default function AdminDashboard() {
                                                 <td>{q.vehicle_make ? `${q.vehicle_year} ${q.vehicle_make} ${q.vehicle_model}` : '—'}</td>
                                                 <td>{channelBadge(q.channel)}</td>
                                                 <td style={{ textAlign: 'center' }}>{q.parts_found || 0}</td>
-                                                <td style={{ textAlign: 'center' }}>{q.email_sent ? '✅' : '❌'}</td>
+                                                <td style={{ textAlign: 'center' }}>
+                                                    {q.email_sent ? '✅' : <span title={q.error_message || 'Error desconocido'}>❌</span>}
+                                                </td>
                                                 <td>{statusBadge(q.status)}</td>
                                             </tr>
                                         ))}
