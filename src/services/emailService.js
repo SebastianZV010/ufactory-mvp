@@ -4,13 +4,14 @@ let transporter;
 let etherealAccount = null;
 
 async function getTransporter() {
-    if (!transporter) {
-        const host = process.env.SMTP_HOST;
-        const user = process.env.SMTP_USER;
-        const pass = process.env.SMTP_PASS;
+    // Always re-create transporter to pick up env vars correctly on Railway
+    const host = process.env.SMTP_HOST;
+    const user = process.env.SMTP_USER;
+    const pass = process.env.SMTP_PASS;
 
-        if (!host || host === 'your_smtp_host') {
-            // Create a real Ethereal test account (free, no signup required)
+    if (!host || host === 'your_smtp_host' || !user || user === 'your_smtp_user') {
+        // Create a real Ethereal test account (free, no signup required)
+        if (!transporter) {
             try {
                 etherealAccount = await nodemailer.createTestAccount();
                 transporter = nodemailer.createTransport({
@@ -47,15 +48,14 @@ async function getTransporter() {
                     }
                 };
             }
-        } else {
-            // Production: use real SMTP (Gmail, etc.)
-            transporter = nodemailer.createTransport({
-                host,
-                port: parseInt(process.env.SMTP_PORT) || 587,
-                secure: parseInt(process.env.SMTP_PORT) === 465,
-                auth: { user, pass },
-            });
         }
+    } else {
+        // Production: use Gmail service (handles port 465/SSL automatically)
+        console.log(`📧 [PROD] Sending via Gmail as ${user}`);
+        transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: { user, pass },
+        });
     }
     return transporter;
 }
