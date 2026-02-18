@@ -192,7 +192,12 @@ export default function AdminDashboard() {
                                     <tbody>
                                         {queries.map(q => (
                                             <tr key={q.id}>
-                                                <td style={{ whiteSpace: 'nowrap' }}>{new Date(q.created_at).toLocaleDateString('es-US', { day: '2-digit', month: 'short' })} <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{new Date(q.created_at).toLocaleTimeString('es-US', { hour: '2-digit', minute: '2-digit' })}</span></td>
+                                                <td style={{ whiteSpace: 'nowrap' }}>
+                                                    {new Date(q.created_at + ' Z').toLocaleDateString('es-US', { day: '2-digit', month: 'short' })}
+                                                    <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', display: 'block' }}>
+                                                        {new Date(q.created_at + ' Z').toLocaleTimeString('es-US', { hour: '2-digit', minute: '2-digit' })}
+                                                    </span>
+                                                </td>
                                                 <td>
                                                     <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{q.customer_name}</div>
                                                     <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{q.customer_phone}</div>
@@ -202,7 +207,12 @@ export default function AdminDashboard() {
                                                 <td>{channelBadge(q.channel)}</td>
                                                 <td style={{ textAlign: 'center' }}>{q.parts_found || 0}</td>
                                                 <td style={{ textAlign: 'center' }}>
-                                                    {q.email_sent ? '✅' : <span title={q.error_message || 'Error desconocido'}>❌</span>}
+                                                    {q.email_sent ? '✅' : (
+                                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                                            <span title={q.error_message || 'Error desconocido'}>❌</span>
+                                                            {q.error_message && <div style={{ fontSize: '0.65rem', color: 'var(--error)', maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{q.error_message}</div>}
+                                                        </div>
+                                                    )}
                                                 </td>
                                                 <td>{statusBadge(q.status)}</td>
                                             </tr>
