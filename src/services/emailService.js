@@ -1,71 +1,39 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
-let transporter;
-let etherealAccount = null;
+let resend = null;
 
-async function getTransporter() {
-    // Always re-create transporter to pick up env vars correctly on Railway
-    const host = process.env.SMTP_HOST;
-    const user = process.env.SMTP_USER;
-    const pass = process.env.SMTP_PASS;
-
-    if (!host || host === 'your_smtp_host' || !user || user === 'your_smtp_user') {
-        // Create a real Ethereal test account (free, no signup required)
-        if (!transporter) {
-            try {
-                etherealAccount = await nodemailer.createTestAccount();
-                transporter = nodemailer.createTransport({
-                    host: 'smtp.ethereal.email',
-                    port: 587,
-                    secure: false,
-                    auth: {
-                        user: etherealAccount.user,
-                        pass: etherealAccount.pass
-                    }
-                });
-                console.log('');
-                console.log('📧 [MODO TEST] Usando Ethereal Email (correos de prueba)');
-                console.log(`   📬 Cuenta: ${etherealAccount.user}`);
-                console.log(`   🔗 Ver emails en: https://ethereal.email/login`);
-                console.log(`      User: ${etherealAccount.user}`);
-                console.log(`      Pass: ${etherealAccount.pass}`);
-                console.log('');
-            } catch (err) {
-                // Fallback: console-only mode
-                console.log('📧 [DEV MODE] Ethereal no disponible, modo consola');
-                transporter = {
-                    sendMail: async (options) => {
-                        console.log('');
-                        console.log('📧 [DEV MODE] Email que se enviaría:');
-                        console.log('━━━━━━━━━━━━━━━━━━━━━');
-                        console.log(`Para: ${options.to}`);
-                        console.log(`Asunto: ${options.subject}`);
-                        console.log('━━━━━━━━━━━━━━━━━━━━━');
-                        console.log(options.text || '(HTML email)');
-                        console.log('━━━━━━━━━━━━━━━━━━━━━');
-                        console.log('');
-                        return { messageId: 'dev-mode-' + Date.now() };
-                    }
-                };
-            }
+function getResend() {
+    if (!resend) {
+        const apiKey = process.env.RESEND_API_KEY;
+        if (!apiKey || apiKey === 'your_resend_api_key') {
+            return null; // dev mode
         }
-    } else {
-        // Production: use Gmail service (handles port 465/SSL automatically)
-        console.log(`📧 [PROD] Sending via Gmail as ${user}`);
-        transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: { user, pass },
-        });
+        resend = new Resend(apiKey);
     }
-    return transporter;
+    return resend;
 }
 
 export async function sendEmail(to, subject, htmlBody, textBody) {
-    const transport = await getTransporter();
-    const fromEmail = process.env.SMTP_FROM || 'U-FACTORY RADIATORS <no-reply@ufactory.com>';
+    const client = getResend();
+
+    // DEV MODE: log to console if no API key
+    if (!client) {
+        console.log('');
+        console.log('📧 [DEV MODE] Email que se enviaría:');
+        console.log('━━━━━━━━━━━━━━━━━━━━━');
+        console.log(`Para: ${to}`);
+        console.log(`Asunto: ${subject}`);
+        console.log('━━━━━━━━━━━━━━━━━━━━━');
+        console.log(textBody || '(HTML email)');
+        console.log('━━━━━━━━━━━━━━━━━━━━━');
+        console.log('');
+        return { success: true, messageId: 'dev-mode-' + Date.now() };
+    }
 
     try {
-        const result = await transport.sendMail({
+        const fromEmail = process.env.SMTP_FROM || 'U-FACTORY RADIATORS <onboarding@resend.dev>';
+
+        const { data, error } = await client.emails.send({
             from: fromEmail,
             to,
             subject,
@@ -73,21 +41,15 @@ export async function sendEmail(to, subject, htmlBody, textBody) {
             text: textBody,
         });
 
-        // If using Ethereal, show the preview URL
-        const previewUrl = nodemailer.getTestMessageUrl(result);
-        if (previewUrl) {
-            console.log('');
-            console.log('✅ Email de prueba enviado!');
-            console.log(`   📬 Para: ${to}`);
-            console.log(`   🔗 VER EMAIL AQUÍ → ${previewUrl}`);
-            console.log('');
-        } else {
-            console.log('✅ Email sent to:', to, '| ID:', result.messageId);
+        if (error) {
+            console.error('❌ Resend error:', error.message);
+            return { success: false, error: error.message };
         }
 
-        return { success: true, messageId: result.messageId, previewUrl };
-    } catch (error) {
-        console.error('❌ Email send error:', error.message);
-        return { success: false, error: error.message };
+        console.log('✅ Email sent via Resend to:', to, '| ID:', data.id);
+        return { success: true, messageId: data.id };
+    } catch (err) {
+        console.error('❌ Email send error:', err.message);
+        return { success: false, error: err.message };
     }
 }
