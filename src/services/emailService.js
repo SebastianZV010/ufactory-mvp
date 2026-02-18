@@ -31,7 +31,7 @@ export async function sendEmail(to, subject, htmlBody, textBody) {
     }
 
     try {
-        const fromEmail = process.env.SMTP_FROM || 'U-FACTORY RADIATORS <onboarding@resend.dev>';
+        const fromEmail = 'U-FACTORY RADIATORS <onboarding@resend.dev>';
 
         const { data, error } = await client.emails.send({
             from: fromEmail,
